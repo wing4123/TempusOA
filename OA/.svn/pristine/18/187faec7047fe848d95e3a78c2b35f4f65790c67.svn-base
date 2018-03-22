@@ -1,0 +1,143 @@
+package cn.tempus.commons;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.servlet.support.RequestContextUtils;
+
+import com.alibaba.fastjson.JSONObject;
+
+import cn.tempus.dao.EasyDao;
+
+public class BaseController {
+	
+	@Autowired
+    public EasyDao basicService;
+	
+	@Autowired
+	public HttpServletRequest request;
+	
+	@Autowired
+	public HttpServletResponse response;
+	
+	@Autowired
+	public HttpSession session;
+	
+	public void initmenu(String url){
+		initmenu(request,url);
+	}
+	
+	public void initmenu(HttpServletRequest request,String url){
+		String language = RequestContextUtils.getLocaleResolver(request).resolveLocale(request).toString();
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("#SQL", "select distinct a.fid,a.fnumber,a.f"+language+" ftext,a.ficon,a.fparentid,a.furl from TB_OA_menu a left join TB_OA_rolemenu b on b.fmenuid=a.fid left join TB_OA_role c on c.fid=b.froleid left join TB_OA_roleuser d on d.froleid=c.fid where d.fuserid=#{user}");
+//		args.put("#SQL", "select fid,fnumber,f"+language+" ftext,ficon,fparentid,furl from TB_OA_menu");
+		args.put("language", language);
+		args.put("user", ((JSONObject) JSONObject.toJSON(request.getSession().getAttribute("USER"))).getString("userid"));
+		List<HashMap<String,Object>> list = basicService.SelectListBySqlWithWhere(args);
+		
+		Object id = null;
+		Object prevMenu = session.getAttribute("prevMenu");
+		for(int i=0;i<list.size();i++){
+			if(url.equals(list.get(i).get("FURL")) || (url=="" && prevMenu!=null && prevMenu.toString().equals(list.get(i).get("FURL")))){
+				list.get(i).put("selected", true);
+				id=list.get(i).get("FPARENTID");
+				break;
+			}
+		}
+		session.setAttribute("prevMenu", url);
+
+		while(id!=null){
+			for(int i=0;i<list.size();i++){
+				if(list.get(i).get("FID").equals(id)){
+					list.get(i).put("selected", true);
+					id = list.get(i).get("FPARENTID");
+					break;
+				}
+			}
+		}
+		
+		list = listtotree(list,null);
+		
+		request.setAttribute("menu", list);
+	}
+	
+	public static List<HashMap<String,Object>> listtotree(List<HashMap<String,Object>> list,String pid){
+		List<HashMap<String,Object>> list0=new ArrayList<HashMap<String,Object>>();
+		for(int i=0;i<list.size();i++){
+			String fid=list.get(i).get("FID").toString();
+			String fparentid=list.get(i).get("FPARENTID")==null?null:list.get(i).get("FPARENTID").toString();
+			HashMap<String,Object> map0=new HashMap<String, Object>();
+			map0.put("id",fid);
+			map0.put("parentid",fparentid);
+			map0.put("number",list.get(i).get("FNUMBER").toString());
+			map0.put("text",list.get(i).get("FTEXT").toString());
+			map0.put("icon",list.get(i).get("FICON"));
+			map0.put("url",list.get(i).get("FURL"));
+			map0.put("selected",list.get(i).get("selected"));
+			map0.put("children",new ArrayList<HashMap<String,Object>>());
+			if((pid==null && fparentid==null) || (fparentid!=null && fparentid.equals(pid))){
+				map0.put("children",listtotree(list,fid));
+				list0.add(map0);
+			}
+		}
+		return list0;
+	}
+	
+	public Map<String,Object> getDateTableRecord(HttpServletRequest request,Map<String,Object> args){
+		
+		int start = Integer.parseInt(request.getParameter("start"));
+		int length = Integer.parseInt(request.getParameter("length"));
+		StringBuffer sql = new StringBuffer("select rownum rn,t.* from ("+args.get("#SQL"));
+		String orderString="";
+		int i=0;
+		while(true){
+			String col= request.getParameter("order["+i+"][column]"); 			
+			if(col==null)break;
+			int column=Integer.parseInt(col.toString());
+			orderString = ","+request.getParameter("columns["+column+"][data]")+" "+request.getParameter("order["+i+"][dir]"); 
+			i++;
+		}
+		if(!orderString.equals("")){
+			sql.append(" order by ").append(orderString.substring(1));
+		}
+		
+		sql.append(") t");
+		
+		args.put("#SQL", "select count(*) from ( "+sql+")");
+		int total = basicService.SelectCountBySqlWithWhere(args);
+		sql.insert(0, "select rownum seq,tt.* from (").append(") tt where rn>").append(start).append(" and rn<=").append(start+length);
+		args.put("#SQL", sql);
+		List<HashMap<String, Object>> data = basicService.SelectListBySqlWithWhere(args);
+		Map<String,Object> result = new HashMap<String, Object>();
+		result.put("data", data);
+		result.put("recordsTotal", total);
+		result.put("recordsFiltered", total);
+		result.put("draw", request.getParameter("draw"));
+		
+		return result;
+	}
+	
+	public String getParemeter(String key) {
+		String parameter = request.getParameter(key);
+		
+		return parameter;
+	}
+	
+	public String[] getParemeterValues(String key) {
+		String[] parameters = request.getParameterValues(key+"[]");
+		String[] parameter = request.getParameterValues(key);
+		
+		return parameters==null?parameter:parameters;
+	}
+	
+	
+}
+

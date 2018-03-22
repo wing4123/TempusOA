@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xmlns:context="http://www.springframework.org/schema/context"
+xmlns:aop="http://www.springframework.org/schema/aop"
+xmlns:tx="http://www.springframework.org/schema/tx"
+xmlns:task="http://www.springframework.org/schema/task"
+xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd
+http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-4.3.xsd">
+	
+	<!-- 自动扫描该包下的spring注解-->  
+    <context:component-scan base-package="cn.tempus" />
+	
+	<!-- 加载jdbc配置文件 -->
+    <bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations" value="classpath:jdbc.properties"/>
+    </bean>
+    
+    <!-- 配置数据源 -->
+	<bean id="dataSource" class="org.apache.commons.dbcp2.BasicDataSource" destroy-method="close" >  
+	    <property name="driverClassName" value="${oracle.driver}"></property>
+	    <property name="url" value="${oracle.url}"></property>
+	    <property name="username" value="${oracle.user}"></property>
+	    <property name="password" value="${oracle.password}"></property>
+	    <property name="initialSize" value="50"></property>
+	    <property name="maxTotal" value="250"></property>
+	    <property name="maxIdle" value="100"></property>
+	    <property name="minIdle" value="20"></property>
+	    <property name="maxWaitMillis" value="5000"></property>
+	</bean>
+	
+	<!-- mybatis -->
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean"> 
+		<property name="dataSource" ref="dataSource" /> 
+		<property name="configLocation" value="classpath:mybatisconf.xml" /> 
+	</bean>
+
+	<bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate" scope="prototype">
+		<constructor-arg index="0" ref="sqlSessionFactory" />
+	</bean>
+    
+    <!-- 让Spring通过自动扫描来查询和管理Mybatis的Mapper -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="cn.tempus" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactory" />
+	</bean>
+	
+	<!-- 该 BeanPostProcessor 将自动起作用，对标注 @Autowired 的 Bean 进行自动注入 -->     
+    <bean class="org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor"/>
+    
+	<!-- 配置事务管理器 -->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">  
+        <property name="dataSource" ref="dataSource" />  
+    </bean> 
+
+    <!-- 配置基于注解的声明式事务 -->
+    <tx:annotation-driven transaction-manager="transactionManager" />
+    
+    <bean id="objectMapper" class="com.fasterxml.jackson.databind.ObjectMapper" />  
+    
+    <!-- ==================== Activiti配置 start =================== -->
+    <bean id="processEngineConfiguration" class="org.activiti.spring.SpringProcessEngineConfiguration">
+         <property name="dataSource" ref="dataSource" />
+         <property name="transactionManager" ref="transactionManager" />
+         <property name="databaseSchemaUpdate" value="true" />
+         <property name="jobExecutorActivate" value="false" />
+         <property name="activityFontName" value="宋体"/>
+         <property name="labelFontName" value="宋体"/>
+    </bean>
+ 
+    <bean id="processEngine" class="org.activiti.spring.ProcessEngineFactoryBean">
+         <property name="processEngineConfiguration" ref="processEngineConfiguration" />
+    </bean>
+ 
+    <bean id="repositoryService" factory-bean="processEngine" factory-method="getRepositoryService"/>
+    <bean id="runtimeService" factory-bean="processEngine" factory-method="getRuntimeService"/>
+    <bean id="processformService" factory-bean="processEngine" factory-method="getFormService"/>
+    <bean id="identityService" factory-bean="processEngine" factory-method="getIdentityService"/>
+    <bean id="taskService" factory-bean="processEngine" factory-method="getTaskService"/>
+    <bean id="historyService" factory-bean="processEngine" factory-method="getHistoryService"/>
+    <bean id="managementService" factory-bean="processEngine" factory-method="getManagementService"/>
+    <!-- ==================== Activiti配置 end =================== -->
+
+    <!-- 配置spring定时任务 -->
+    <task:executor id="executor" pool-size="50" />
+    <task:scheduler id="scheduler" pool-size="100" />
+    <task:annotation-driven executor="executor" scheduler="scheduler" />
+    
+	<!-- 配置 spring 的 JdbcTemplate -->  
+	<bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">  
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+	<!-- 配置 spring 的 NamedParameterJdbcTemplate -->  
+	<bean id="namedParameterJdbcTemplate" class="org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate">  
+		<constructor-arg ref="jdbcTemplate" />
+	</bean>
+	
+	<!-- 使用redis共享集群session -->
+    <bean id="redisHttpSessionConfiguration" class="org.springframework.session.data.redis.config.annotation.web.http.RedisHttpSessionConfiguration">
+    	<property name="maxInactiveIntervalInSeconds" value="3600"/>
+	</bean>
+	<bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+	    <property name="maxTotal" value="100" />
+	    <property name="maxIdle" value="10" />
+	    <property name="testOnBorrow" value="true" />  
+	</bean>
+	<bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory" destroy-method="destroy">
+	    <property name="hostName" value="${redis.host}"/>
+	    <property name="port" value="6379"/>
+	    <property name="password" value="tempus" />
+	    <property name="timeout" value="3000"/>
+	    <property name="usePool" value="true"/>
+	    <property name="poolConfig" ref="jedisPoolConfig"/>
+	</bean>
+	
+</beans>

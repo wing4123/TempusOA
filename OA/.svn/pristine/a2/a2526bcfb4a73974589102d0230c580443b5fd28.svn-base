@@ -1,0 +1,136 @@
+package cn.tempus.system.permission;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.support.RequestContextUtils;
+
+import cn.tempus.commons.BaseService;
+
+@Controller
+@RequestMapping("/PermissionManage")
+public class PermissionController {
+	
+	@Autowired
+	PermissionService permissonservice;
+	
+	@Autowired
+	BaseService baseService;
+	
+	@Autowired
+	HttpServletRequest request;
+	
+	@RequestMapping("/PermissionManage")
+	public String PermissionManage(){
+		baseService.initmenu( "/PermissionManage/PermissionManage");
+		return "system/permission/PermissionManage";
+	}
+	
+	@RequestMapping("/getRoleList")
+	@ResponseBody
+	public Map<String,Object> getRoleList(){
+		String language = RequestContextUtils.getLocaleResolver(request).resolveLocale(request).toString();
+		Map<String,Object> args = new HashMap<String,Object>();
+		StringBuffer sql = new StringBuffer("select a.fid,a.fname,a.fremark,b.fmenus from TB_OA_role a left join (select a.froleid,listagg(b.f"+language+",',') within group (order by b.fnumber) fmenus from TB_OA_rolemenu a left join TB_OA_menu b on b.fid=a.fmenuid group by a.froleid) b on b.froleid=a.fid ");
+		args.put("#SQL", sql);
+		Map<String,Object> result = baseService.getDateTableRecord(args);
+		
+		return result;
+	}
+	
+	@RequestMapping("/SaveRole")
+	@ResponseBody
+	public int SaveRole(){
+		int result = permissonservice.SaveRole();
+		
+		return result;
+	}
+	
+	@RequestMapping("/getRoleInfoById")
+	@ResponseBody
+	public Map<String,Object> getRoleInfoById(@RequestParam String id){
+		Map<String,Object> userinfo = permissonservice.getRoleInfoById(id);
+		
+		return userinfo;
+	}
+	
+	@RequestMapping("/DeleteRole")
+	@ResponseBody
+	public int DeleteMenu(@RequestParam String id){
+		int result = permissonservice.DeleteRole(id);
+		return result;
+	}
+	
+	@RequestMapping("/SaveRoleMenu")
+	@ResponseBody
+	public int SaveRoleMenu(){
+		int result = permissonservice.SaveRoleMenu();
+		
+		return result;
+	}
+	
+	@RequestMapping("/getRoleMenuState")
+	@ResponseBody
+	public List<HashMap<String, Object>> getRoleMenuState(){
+		String language = RequestContextUtils.getLocaleResolver(request).resolveLocale(request).toString();
+		String roleid = request.getParameter("roleid");
+		List<HashMap<String, Object>> result = permissonservice.getRoleMenuState(language,roleid);
+		
+		return result;
+	}
+	
+	@RequestMapping("/getRoleUserList")
+	@ResponseBody
+	public List<HashMap<String,Object>> getRoleUserList(){
+		String roleid = request.getParameter("roleid");
+		return permissonservice.getRoleUserList(roleid);
+	}
+	
+	@RequestMapping("/getUserList")
+	@ResponseBody
+	public List<HashMap<String, Object>> getUserList(@RequestParam String search,@RequestParam String roleid){
+		List<HashMap<String, Object>> result = permissonservice.getUserList(search,roleid);
+		
+		return result;
+	}
+	
+	@RequestMapping("/SaveRoleUser")
+	@ResponseBody
+	public int SaveRoleUser(){
+		int result = permissonservice.SaveRoleUser();
+		
+		return result;
+	}
+	
+	@RequestMapping("/getUserPermission")
+	@ResponseBody
+	public List<HashMap<String, Object>> getUserPermission(@RequestParam String userid){
+		List<HashMap<String, Object>> result = permissonservice.getUserPermission(userid);
+		
+		return result;
+	}
+	
+	@RequestMapping("/deleteUserPermission")
+	@ResponseBody
+	public int deleteUserPermission(@RequestParam String id){
+		int result = permissonservice.deleteUserPermission(id);
+		
+		return result;
+	}
+	
+	@RequestMapping("/addUserPermission")
+	@ResponseBody
+	public int addUserPermission(@RequestParam String userid,@RequestParam String divisionid){
+		int result = permissonservice.addUserPermission(userid,divisionid);
+		
+		return result;
+	}
+}

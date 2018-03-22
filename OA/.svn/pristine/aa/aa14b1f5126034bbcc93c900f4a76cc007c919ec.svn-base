@@ -1,0 +1,140 @@
+apply plugin: 'java'
+apply plugin: 'war'
+apply plugin: 'eclipse-wtp'
+
+sourceCompatibility = 1.8 // 设置jdk版本  
+
+tasks.withType(JavaCompile) {
+    options.encoding ="UTF-8"
+}
+
+//仓库
+repositories {
+	maven{url 'http://172.18.240.12:9081/repository/maven-central/'}
+	maven{url 'http://172.18.240.12:9081/repository/maven-releases/'}
+}
+
+dependencies {
+	//本地jar包
+	//compile fileTree(dir:'libs',include:['*.jar'])
+	
+	//junit
+	testCompile 'junit:junit:latest.release'
+    
+    //spring
+    compile 'org.springframework:spring-core:latest.release'
+	compile 'org.springframework:spring-webmvc:latest.release'
+	compile 'org.springframework:spring-test:latest.release'
+	compile 'org.springframework:spring-tx:latest.release'
+	compile 'org.springframework:spring-jdbc:latest.release'
+	compile 'org.springframework:spring-websocket:latest.release'
+	
+    //activiti 工作流
+    compile 'org.activiti:activiti-engine:5.22.0'
+    compile 'org.activiti:activiti-spring:5.22.0'
+    compile 'org.activiti:activiti-modeler:5.22.0'
+    compile 'org.activiti:activiti-diagram-rest:5.22.0'
+	
+    //mybatis
+    compile 'org.mybatis:mybatis-spring:latest.release'
+    
+    //jpa
+    compile 'org.springframework.data:spring-data-jpa:latest.release'
+    compile 'org.hibernate:hibernate-entitymanager:latest.release'
+    
+    //log4j
+    compile 'log4j:log4j:latest.release'
+    compile 'org.slf4j:slf4j-log4j12:latest.release'
+    
+    //oracleq驱动
+	compile 'com.oracle:ojdbc8:12.2.0.1.0'
+	//maven上传本地jar包:mvn deploy:deploy-file -DgroupId=com.oracle -DartifactId=ojdbc8 -Dversion=12.2.0.1.0 -Dpackaging=jar -Dfile=c:\ojdbc8.jar -Durl=http://172.18.240.11:9081/repository/maven-releases/ -DrepositoryId=maven-realeases
+    
+    //数据库连接池
+    compile 'org.apache.commons:commons-dbcp2:latest.release'
+    
+	//文件上传
+    compile 'commons-fileupload:commons-fileupload:latest.release'
+    
+    //json
+    compile 'com.alibaba:fastjson:latest.release'
+    
+    //jackson
+   	compile 'com.fasterxml.jackson.core:jackson-databind:latest.release'
+    
+    //servlet jstl
+    providedCompile 'javax.servlet:javax.servlet-api:latest.release'
+    providedCompile 'javax.servlet.jsp:javax.servlet.jsp-api:latest.release'
+    compile 'javax.servlet:jstl:latest.release'
+    compile 'taglibs:standard:latest.release'
+    
+    //操作excel
+    compile 'org.apache.poi:poi-ooxml:latest.release'
+    compile 'org.apache.commons:commons-configuration2:latest.release'
+    
+    //spring+redis 集群session共享
+	compile 'org.springframework.session:spring-session:latest.release'
+	compile 'org.springframework.data:spring-data-redis:1.8.9.RELEASE'
+	compile 'redis.clients:jedis:latest.release'
+	
+	//zip文件压缩
+	compile 'net.lingala.zip4j:zip4j:latest.release'
+    
+}
+
+/****************************************************************************/
+/*
+buildscript {  
+    repositories {  
+        jcenter()
+        maven{url "https://plugins.gradle.org/m2/"}
+    }  
+    dependencies {  
+        classpath 'org.hidetake:gradle-ssh-plugin:2.9.0'  
+    }  
+}
+
+apply plugin: 'org.hidetake.ssh'
+
+ssh.settings {  
+    knownHosts = allowAnyHosts  
+}
+  
+remotes {  
+    server_test {  
+        host = '172.18.240.13'
+        port = 22
+        user = "root"
+        password = "Oracle123"
+    }
+    
+    server_approd {
+        host = '172.18.240.11'
+        port = 22
+        user = "root"
+        password = "Oracle123"
+    }
+}
+
+task deployTests(dependsOn: war) {
+    ssh.run {
+        session(remotes.server_test) {
+            executeScript '''#!/bin/sh
+      						echo shutdown tomcat...
+      						cd /usr/local/tomcat7777/webapps
+      						../bin/shutdown.sh
+							rm -rf OA
+							rm -f OA.war
+							echo start upload war...
+      					  '''
+            put from: buildDir.toString() + '/libs/OA.war', into: '/usr/local/tomcat7777/webapps'
+            executeScript '''#!/bin/sh
+      						echo unzip war...
+      						cd /usr/local/tomcat7777/webapps
+      						unzip -q OA.war -d ./OA
+      						\\cp -f jdbc.properties ./OA/WEB-INF/classes/jdbc.properties
+      						../bin/startup.sh
+      						'''
+        }
+    }
+}*/

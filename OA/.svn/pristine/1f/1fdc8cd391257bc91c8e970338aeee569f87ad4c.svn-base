@@ -1,0 +1,206 @@
+package cn.tempus.system.permission;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import cn.tempus.dao.EasyDao;
+
+import java.util.*;
+
+@Service
+public class PermissionService {
+	
+	@Autowired
+    private EasyDao basicService;
+	
+	@Autowired
+	HttpServletRequest request;
+	
+	public Map<String,Object> getRoleInfoById(String id){
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("#SQL", "select fid,fname,fremark from TB_OA_role where fid=#{id}");
+		args.put("id", id);
+		Map<String,Object> roleinfo = basicService.GetSinglerData(args);
+		
+		return roleinfo;
+	}
+	
+	public List<HashMap<String,Object>> getRoleUserList(String roleid){
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("#SQL", "select a.user_id fid,a.user_name fname,a.user_code fcode,case when b.fuserid is null then 0 else 1 end as fselected from tb_user a left join TB_OA_roleuser b on b.fuserid=a.user_id and b.froleid=#{roleid} where sysdate between start_active_date and NVL(end_active_date,sysdate) and allow_login_flag='Y' ");
+		args.put("roleid", roleid);
+		return basicService.SelectListBySqlWithWhere(args);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public int SaveRole(){
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("#SQL", "insert into TB_OA_role (fid,fname,fremark,fcreator,fcreatetime) values (#{id},#{name},#{remark},#{user},#{time})");
+		args.put("id", UUID.randomUUID().toString());
+		args.put("name", request.getParameter("name"));
+		args.put("remark", request.getParameter("remark"));
+		args.put("user", ((Map<String,Object>)request.getSession().getAttribute("USER")).get("userid"));
+		args.put("time", new Date());
+		int result=0;
+		
+		if(request.getParameter("id").equals("")){
+			result = basicService.InsertData(args);
+		}else{
+			args.put("#SQL", "update TB_OA_role set fname=#{name},fremark=#{remark} where fid=#{id}");
+			args.put("id", request.getParameter("id"));
+			result = basicService.UpdateData(args);
+		}
+		
+		return result;
+	}
+	
+	@Transactional(propagation=Propagation.REQUIRED) 
+	public int DeleteRole(String id){
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("#SQL", "delete from TB_OA_role where fid=#{id}");
+		args.put("id", id);
+		int result = basicService.DeleteData(args);
+		args.put("#SQL", "delete from TB_OA_rolemenu where froleid=#{id}");
+		basicService.DeleteData(args);
+		return result;
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Transactional(propagation=Propagation.REQUIRED) 
+	public int SaveRoleMenu(){
+		String[] menus = request.getParameterValues("menus[]");
+		String roleid = request.getParameter("roleid");
+		
+		Map<String,Object> delete = new HashMap<String,Object>();
+		delete.put("#SQL", "delete from TB_OA_rolemenu where froleid=#{roleid}");
+		delete.put("roleid", roleid);
+		basicService.DeleteData(delete);
+		
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("roleid", roleid);
+		args.put("user", ((Map<String,Object>)request.getSession().getAttribute("USER")).get("userid"));
+		args.put("time", new Date());
+		StringBuffer sql = new StringBuffer("insert into TB_OA_rolemenu ");
+		for(int i=0;i<menus.length;i++){
+			sql.append("select #{id"+i+"},#{roleid},#{menuid"+i+"},#{user},#{time} from dual union ");
+			args.put("id"+i, UUID.randomUUID().toString());
+			args.put("menuid"+i, menus[i]);
+		}
+		args.put("#SQL", sql.substring(0,sql.length()-7));
+		
+		int result = basicService.InsertData(args);
+		
+		return result;
+	}
+	
+	public List<HashMap<String,Object>> getRoleMenuState(String language,String roleid){
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("#SQL", "select a.fid,a.f"+language+" ftext,a.ficon,a.fparentid,b.fid bid from TB_OA_menu a left join TB_OA_rolemenu b on b.fmenuid=a.fid and b.froleid=#{roleid}");
+		args.put("language", language);
+		args.put("roleid", roleid);
+		List<HashMap<String,Object>> list = basicService.SelectListBySqlWithWhere(args);
+		
+		return listtotree(list,null);
+	}
+	
+	public static List<HashMap<String,Object>> listtotree(List<HashMap<String,Object>> list,String pid){
+		List<HashMap<String,Object>> list0=new ArrayList<HashMap<String,Object>>();
+		for(int i=0;i<list.size();i++){
+			String fid=list.get(i).get("FID").toString();
+			String fparentid=list.get(i).get("FPARENTID")==null?null:list.get(i).get("FPARENTID").toString();
+			HashMap<String,Object> map0=new HashMap<String, Object>();
+			map0.put("id",fid);
+			map0.put("name",list.get(i).get("FTEXT").toString());
+			//map0.put("icon",list.get(i).get("FICON"));
+			map0.put("checked", list.get(i).get("BID")!=null);
+			map0.put("children",new ArrayList<HashMap<String,Object>>());
+			if((pid==null && fparentid==null) || (fparentid!=null && fparentid.equals(pid))){
+//				list.remove(i);
+//				i=i-1;
+				map0.put("children",listtotree(list,fid));
+				list0.add(map0);
+			}
+		}
+		return list0;
+	}
+	
+	public List<HashMap<String,Object>> getUserList(String search,String roleid){
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("roleid", roleid);
+		StringBuffer sql = new StringBuffer("select a.user_id,a.user_code,a.user_name,decode(b.fuserid,null,'\"\"','checked=\"checked\"') checked from tb_user a left join TB_OA_roleuser b on b.fuserid=a.user_id and b.froleid=#{roleid}");
+		if(search!=""){
+			sql.append(" where user_code like #{search} or user_name like #{search}");
+			args.put("search", "%"+search+"%");
+		}
+		args.put("#SQL", sql);
+		
+		List<HashMap<String,Object>> list = basicService.SelectListBySqlWithWhere(args);
+		
+		return list;
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Transactional(propagation=Propagation.REQUIRED) 
+	public int SaveRoleUser(){
+		String[] users = request.getParameterValues("users[]");
+		String roleid = request.getParameter("roleid");
+		
+		Map<String,Object> delete = new HashMap<String,Object>();
+		delete.put("#SQL", "delete from TB_OA_roleuser where froleid=#{roleid}");
+		delete.put("roleid", roleid);
+		basicService.DeleteData(delete);
+		
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("roleid", roleid);
+		args.put("user", ((Map<String,Object>)request.getSession().getAttribute("USER")).get("userid"));
+		args.put("time", new Date());
+		StringBuffer sql = new StringBuffer("insert into TB_OA_roleuser ");
+		for(int i=0;i<users.length;i++){
+			sql.append("select #{id"+i+"},#{roleid},#{userid"+i+"},#{user},#{time} from dual union ");
+			args.put("id"+i, UUID.randomUUID().toString());
+			args.put("userid"+i, users[i]);
+		}
+		args.put("#SQL", sql.substring(0,sql.length()-7));
+		
+		int result = basicService.InsertData(args);
+		
+		return result;
+	}
+	
+	public List<HashMap<String,Object>> getUserPermission(String userid){
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("#SQL", "select a.fid,a.fuserid,b.fname,b.fnumber from TB_OA_userpermission a left join TB_OA_division b on b.fid=a.fdivisionid where a.fuserid=#{userid}");
+		args.put("userid", userid);
+		
+		List<HashMap<String,Object>> list = basicService.SelectListBySqlWithWhere(args);
+		
+		return list;
+	}
+	
+	public int deleteUserPermission(String id){
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("#SQL", "delete from TB_OA_userpermission where fid=#{id}");
+		args.put("id", id);
+		
+		int result = basicService.DeleteData(args);
+		
+		return result;
+	}
+	
+	public int addUserPermission(String userid,String divisionid){
+		Map<String,Object> args = new HashMap<String,Object>();
+		args.put("#SQL", "insert into TB_OA_userpermission values (#{id},#{userid},#{divisionid})");
+		args.put("id", UUID.randomUUID().toString());
+		args.put("userid", userid);
+		args.put("divisionid", divisionid);
+		
+		int result = basicService.InsertData(args);
+		
+		return result;
+	}
+
+}
