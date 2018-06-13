@@ -10,8 +10,7 @@ tasks.withType(JavaCompile) {
 
 //仓库
 repositories {
-	maven{url 'http://172.18.240.12:9081/repository/maven-central/'}
-	maven{url 'http://172.18.240.12:9081/repository/maven-releases/'}
+	mavenCentral()
 }
 
 dependencies {
@@ -44,7 +43,7 @@ dependencies {
     compile 'org.slf4j:slf4j-log4j12:1.8.0-beta0'
     
     //oracleq驱动
-	compile 'com.oracle:ojdbc8:12.2.0.1.0'
+	//compile 'com.oracle:ojdbc8:12.2.0.1.0'
 	//maven上传本地jar包:mvn deploy:deploy-file -DgroupId=com.oracle -DartifactId=ojdbc8 -Dversion=12.2.0.1.0 -Dpackaging=jar -Dfile=c:\ojdbc8.jar -Durl=http://172.18.240.11:9081/repository/maven-releases/ -DrepositoryId=maven-realeases
     
     //数据库连接池
