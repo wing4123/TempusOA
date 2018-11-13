@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Document</title>
+        <style type="text/css">
+            body{
+                margin: 60px;
+            }
+            #components{
+                float: left;
+                width: 150px;
+                height: 800px;
+                border: 1px solid #ccc;
+                border-right: none;
+                text-align: center;
+                position: relative;
+            }
+            #d1 {
+                float: left;
+                width: 800px;
+                height: 800px;
+                border: 1px solid #ccc;
+                position: relative;
+                background: #fafafa;
+                position: relative;
+            }
+            svg{
+                height: 100%;
+                width: 100%;
+            }
+            #elements{
+                height:0px;
+            }
+            #elements,svg{
+                position: absolute;
+                top: 0px;
+                left: 0px;
+            }
+            #components>div{
+                margin: 20px auto;
+                background-color: white;
+            }
+            #elements>div{
+                text-align: center;
+                position: absolute;
+                background-color: white;
+            }
+            .start{
+                width: 80px;
+                height: 80px;
+                line-height: 80px;
+                border: 1px solid #ccc;
+                border-radius: 50%;
+            }
+            .field,.logic{
+                width: 100px;
+                height: 80px;
+                line-height: 80px;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+            }
+            .output .circle {
+                position: absolute;
+                width: 14px;
+                height: 14px;
+                border: 1px solid #ccc;
+                bottom: -8px;
+                left: calc(50% - 8px);
+                border-radius: 50%;
+                background: #fff;
+                cursor: crosshair;
+                z-index: 10;
+            }
+            .output .circle:hover {
+                background: #FC9901;
+            }
+
+        </style>
+    </head>
+
+    <body>
+        <div id="components">
+            <div class="start" draggable="true" data-type="start" data-inout="out">开始</div>
+            <div class="field" draggable="true" data-type="field" data-inout="out">字段</div>
+            <div class="logic" draggable="true" data-type="logic" data-inout="out">逻辑</div>
+        </div>
+        <div id="d1">
+            <div style="border-top: solid 1px #ccc;position:absolute;top:50%;width:100%"></div>
+            <div style="border-right: solid 1px #ccc;position:absolute;left:50%;height:100%"></div>
+            <svg style="position: absolute;">
+                <defs>
+                    <marker id="markerArrow1" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,1 L0,5 L3,3 z" fill="#CCCCCC"></path> 
+                    </marker>
+                    <marker id="markerArrow2" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,1 L0,5 L3,3 z" fill="#cccdff"></path> 
+                    </marker>
+                    <marker id="markerArrow3" markerWidth="10" markerHeight="10" refX="3" refY="2.6" orient="auto" markerUnits="strokeWidth">
+                        <path fill="#f00" d="m6.75848,4.22161c-0.13193,0.12924 -0.3468,0.12924 -0.47903,0l-3.03436,-2.97252c-0.13193,-0.12953 -0.13223,-0.33974 0,-0.46927c0.13163,-0.12953 0.3465,-0.12953 0.47933,0l3.03406,2.97223c0.13193,0.13012 0.13253,0.34003 0,0.46956l0,0l0,0zm-0.00361,-2.974l-3.03406,2.97223c-0.13253,0.12983 -0.3471,0.12983 -0.47933,0c-0.13223,-0.12924 -0.13223,-0.33915 0.0003,-0.46927l3.03406,-2.97193c0.13253,-0.12953 0.3474,-0.12953 0.47903,-0.0003c0.13253,0.12953 0.13193,0.33974 0,0.46927l0,0l0,0z"/>
+                    </marker>
+                </defs>
+            </svg>
+            <div id="elements"></div>
+        </div>
+        
+        <script src="./jquery-3.1.1.js"></script>
+        <script src="./jquery-ui-1.11.2.min.js"></script>
+        <script type="text/javascript">
+            var uuid = 0;
+            var startLeft,startTop,outerWidth,innerWidth;
+            var cWidth = $("#components").width();
+            var marginLeft = $("#d1").position().left - $("#components").position().left;
+            var marginTop = $("#d1").position().top - $("#components").position().top;
+            $(()=>{
+                $("#components div").draggable({
+                    zIndex: 100,
+                    revert: true,
+                    revertDuration: 0,
+                    appendTo: "#elements",
+                    start:function(){
+                        startLeft = $(this).position().left;
+                        startTop = $(this).position().top;
+                        outerWidth = $(this).outerWidth(true);
+                        innerWidth = $(this).outerWidth(false);
+                        outerHeight = $(this).outerHeight(true);
+                        innerHeight = $(this).outerHeight(false);
+                        console.log("startLeft",startLeft);
+                        console.log("startTop",startTop);
+                    }
+                });
+                $("#d1").droppable({
+                    drop:(e,ui)=>{
+                        console.log(e);
+                        console.log(ui);
+                        if(!ui.helper.attr("id")){
+                            // uuid++;
+                            // var component = ui.helper.clone().attr("id",uuid);
+                            // component.css({"position":"absolute","left":`${ui.position.left -marginLeft + (outerWidth-innerWidth)/2}px`,"top":`${ui.position.top + startTop + (outerHeight-innerHeight)/2}px`});
+                            // console.log(component.data());
+                            // $("#elements").append(component);
+                            // component.draggable();
+                            
+                            var x = ui.position.left -marginLeft + (outerWidth-innerWidth)/2;
+                            var y = ui.position.top + startTop + (outerHeight-innerHeight)/2;
+                            console.log("x",x);
+                            console.log("y",y);
+                            var element = 
+                            `
+                                <div id="${uuid}" class = "${ui.helper.data('type')}" style="left:${x}px;top:${y}px" draggable = "true" data-type="${ui.helper.data('type')}" data-id="${uuid}" data-x="${x}" data-y="${y}" data-inline="" data-outlines="">
+                                    <span>${ui.helper.text()}</span>
+                                    <div class = "output">
+                                            <span class = "circle" title = "输出" onmousedown = "noDrag(this)" onmouseup = "addDrag(this)" onmouseleave = "draw(this,event)" onmouseenter = "noMove()"></span>
+                                    </div>
+                                </div>
+                            `;
+                            $("#elements").append(element);
+                            drag(uuid);
+                            console.log($(element));
+                        }
+                    }
+                });
+                
+                var drag = function(id){
+                    $("#elements #"+id).draggable({
+                        drag: function(e,ui){
+                            
+                        }
+                    });
+                }
+                
+            });
+
+        </script>
+    </body>
+
+</html>
